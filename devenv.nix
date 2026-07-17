@@ -4,6 +4,10 @@
   packages = with pkgs; [
     git
     just
+    curl
+    binutils
+    mbedtls
+    valgrind
   ];
 
   languages.odin.enable = true;
@@ -11,7 +15,7 @@
   files."justfile".text = ''
     odin_exe_path := "${lib.getExe pkgs.odin}"
 
-    main_file_path := "." / "main.odin"
+    main_file_path := "." / "examples" / "main" / "main.odin"
     out_path := "." / "out"
     out_bin_path := out_path / "main"
 

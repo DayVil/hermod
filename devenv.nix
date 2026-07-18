@@ -1,16 +1,19 @@
 { pkgs, lib, config, inputs, ... }:
-
+let
+  isLinux = pkgs.stdenv.isLinux;
+in
 {
   packages = with pkgs; [
-    git
     just
+  ] ++ lib.optionals isLinux [
+    git
     curl
     binutils
     mbedtls
     valgrind
   ];
 
-  languages.odin.enable = true;
+  languages.odin.enable = isLinux;
 
   files."justfile".text = ''
     odin_exe_path := "${lib.getExe pkgs.odin}"

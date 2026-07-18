@@ -21,6 +21,13 @@ Curl_Error :: enum {
 	Failed_Get,
 }
 
+destroy_hermod :: proc {
+	destroy_header,
+	destroy_requests,
+	destroy_response,
+}
+
+
 // ========================================
 
 http_get :: proc(
@@ -48,16 +55,9 @@ http_get :: proc(
 	c_url := strings.clone_to_cstring(url)
 	defer delete(c_url)
 
-	curl_slist: ^curl.slist
-	headers, ok := headers.(Header)
-	defer {
-		if ok {
-			curl.slist_free_all(curl_slist)
-		}
-	}
+	header_unwrapped, ok := headers.(Header)
 	if ok {
-		curl_slist = _into_slist(&headers) or_return
-		curl.easy_setopt(handle, .HTTPHEADER, curl_slist)
+		curl.easy_setopt(handle, .HTTPHEADER, header_unwrapped)
 	}
 	curl.easy_setopt(handle, .URL, c_url)
 	curl.easy_setopt(handle, .WRITEFUNCTION, _write_callback)
@@ -101,20 +101,18 @@ destroy_response :: proc(response: ^Response) {
 // ========================================
 
 Header :: struct {
-	_elements: [dynamic]cstring,
+	_elements: ^curl.slist,
 }
 
 Header_Error :: enum {
 	No_Trailing_Semi_Or_Colon_After_Single_Token,
 	Wrong_Seperator,
 	More_Than_Two_Token,
+	Could_Not_Append_To_SList,
 }
 
 destroy_header :: proc(header: ^Header) {
-	defer delete(header._elements)
-	for ele in header._elements {
-		delete(ele)
-	}
+	curl.slist_free_all(header._elements)
 }
 
 create_header :: proc(
@@ -124,7 +122,6 @@ create_header :: proc(
 	res: Header,
 	err: Header_Error,
 ) {
-	res._elements = make([dynamic]cstring, allocator)
 	for header_element in header_elements {
 		trimmed_element := strings.trim(header_element, " ")
 
@@ -149,21 +146,12 @@ create_header :: proc(
 		}
 
 		sl := strings.clone_to_cstring(header_element, allocator)
-		append(&res._elements, sl)
-	}
-
-	return
-}
-
-_into_slist :: proc(header: ^Header) -> (res: ^curl.slist, err: Curl_Error) {
-	for h in header._elements {
-		new_res := curl.slist_append(res, h)
-		if new_res == nil {
-			curl.slist_free_all(res)
-			return nil, .Failed_Init
+		res._elements = curl.slist_append(res._elements, sl)
+		if res._elements == nil {
+			return {}, .Could_Not_Append_To_SList
 		}
-		res = new_res
 	}
+
 	return
 }
 

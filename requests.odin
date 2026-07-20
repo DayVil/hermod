@@ -1,6 +1,7 @@
 package hermod
 
 import "base:runtime"
+import "core:fmt"
 import "core:strings"
 import "vendor:curl"
 
@@ -18,6 +19,7 @@ destroy_requests :: proc() {
 
 Error :: union {
 	Hermod_Error,
+	curl.code,
 }
 
 Hermod_Error :: enum {
@@ -51,12 +53,12 @@ http_get :: proc(
 	allocator := context.allocator,
 ) -> (
 	Response,
-	Status_Code,
+	Error,
 ) {
 	handle := curl.easy_init()
 	if handle == nil {
 		// There is no reason this should happen
-		unreachable()
+		panic("Could not create the handle")
 	}
 	defer curl.easy_cleanup(handle)
 
@@ -81,8 +83,7 @@ http_get :: proc(
 
 	curl_res := curl.easy_perform(handle)
 	if curl_res != .E_OK {
-		// There is no reason this should happen
-		unreachable()
+		return {}, curl_res
 	}
 
 	status_code: i64
@@ -93,7 +94,7 @@ http_get :: proc(
 		body        = body,
 		status_code = code,
 	}
-	return resp, code
+	return resp, nil
 }
 
 _CB_Write_Data :: struct {

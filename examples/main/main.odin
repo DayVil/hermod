@@ -26,10 +26,13 @@ main :: proc() {
 	defer hermod.destroy_hermod(&header)
 
 	fmt.printfln("Requesting to: %s", URL)
-	req, code := hermod.http_get(URL, header)
+	req, curl_err := hermod.http_get(URL, header)
+	if curl_err != nil {
+		fmt.printfln("Err: %v", curl_err)
+	}
 	defer hermod.destroy_hermod(&req)
 
-	_, success := code.(hermod.Success)
+	_, success := req.status_code.(hermod.Success)
 	if !success {
 		fmt.eprintfln("Server error %d %v", success, success)
 		return

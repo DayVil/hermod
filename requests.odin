@@ -18,7 +18,6 @@ destroy_requests :: proc() {
 
 Error :: union {
 	Hermod_Error,
-	curl.code,
 }
 
 Hermod_Error :: enum {
@@ -32,6 +31,17 @@ destroy_hermod :: proc {
 	destroy_response,
 }
 
+// ========================================
+
+Response :: struct {
+	body:        [dynamic]byte,
+	status_code: Status_Code,
+}
+
+destroy_response :: proc(response: ^Response) {
+	delete(response.body)
+}
+
 
 // ========================================
 
@@ -40,12 +50,13 @@ http_get :: proc(
 	headers: Maybe(Header) = nil,
 	allocator := context.allocator,
 ) -> (
-	res: Response,
-	err: Error,
+	Response,
+	Status_Code,
 ) {
 	handle := curl.easy_init()
 	if handle == nil {
-		return Response{}, .Failed_Init
+		// There is no reason this should happen
+		unreachable()
 	}
 	defer curl.easy_cleanup(handle)
 
@@ -70,17 +81,19 @@ http_get :: proc(
 
 	curl_res := curl.easy_perform(handle)
 	if curl_res != .E_OK {
-		return Response{}, curl_res
+		// There is no reason this should happen
+		unreachable()
 	}
 
 	status_code: i64
 	curl.easy_getinfo(handle, .RESPONSE_CODE, &status_code)
 
+	code := create_status_code(status_code)
 	resp := Response {
 		body        = body,
-		status_code = status_code,
+		status_code = code,
 	}
-	return resp, curl_res
+	return resp, code
 }
 
 _CB_Write_Data :: struct {
@@ -102,16 +115,6 @@ _write_callback :: proc "c" (contents: rawptr, size: uint, nmemb: uint, userdata
 
 // ========================================
 
-Response :: struct {
-	body:        [dynamic]byte,
-	status_code: i64,
-}
-
-destroy_response :: proc(response: ^Response) {
-	delete(response.body)
-}
-
-// ========================================
 
 Header :: struct {
 	_elements: ^curl.slist,

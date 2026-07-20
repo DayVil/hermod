@@ -16,7 +16,12 @@ destroy_requests :: proc() {
 
 // ========================================
 
-Curl_Error :: enum {
+Error :: union {
+	Hermod_Error,
+	curl.code,
+}
+
+Hermod_Error :: enum {
 	Failed_Init,
 	Failed_Get,
 }
@@ -36,11 +41,11 @@ http_get :: proc(
 	allocator := context.allocator,
 ) -> (
 	res: Response,
-	err: Curl_Error,
+	err: Error,
 ) {
 	handle := curl.easy_init()
 	if handle == nil {
-		return Response{}, Curl_Error.Failed_Init
+		return Response{}, .Failed_Init
 	}
 	defer curl.easy_cleanup(handle)
 
@@ -52,7 +57,7 @@ http_get :: proc(
 		ctx  = ctx,
 	}
 
-	c_url := strings.clone_to_cstring(url)
+	c_url := strings.clone_to_cstring(url, allocator)
 	defer delete(c_url)
 
 	header_unwrapped, ok := headers.(Header)
@@ -65,10 +70,17 @@ http_get :: proc(
 
 	curl_res := curl.easy_perform(handle)
 	if curl_res != .E_OK {
-		return Response{}, Curl_Error.Failed_Get
+		return Response{}, curl_res
 	}
 
-	return Response{body = body}, nil
+	status_code: i64
+	curl.easy_getinfo(handle, .RESPONSE_CODE, &status_code)
+
+	resp := Response {
+		body        = body,
+		status_code = status_code,
+	}
+	return resp, curl_res
 }
 
 _CB_Write_Data :: struct {
@@ -91,7 +103,8 @@ _write_callback :: proc "c" (contents: rawptr, size: uint, nmemb: uint, userdata
 // ========================================
 
 Response :: struct {
-	body: [dynamic]byte,
+	body:        [dynamic]byte,
+	status_code: i64,
 }
 
 destroy_response :: proc(response: ^Response) {

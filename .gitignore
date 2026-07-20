@@ -9,6 +9,7 @@ devenv.local.yaml
 # pre-commit
 .pre-commit-config.yaml
 justfile
+main.dSYM
 
 # out
 out

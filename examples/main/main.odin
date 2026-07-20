@@ -23,14 +23,20 @@ main :: proc() {
 		fmt.eprintfln("%v", err)
 		return
 	}
-	defer hermod.destroy_header(&header)
+	defer hermod.destroy_hermod(&header)
 
+	fmt.printfln("Requesting to: %s", URL)
 	req, err_get := hermod.http_get(URL, header)
-	if err_get != nil {
-		fmt.eprintfln("%v", err_get)
+	if err_get != .E_OK {
+		fmt.eprintfln("Error fetching with code: %v", err_get)
 		return
 	}
-	defer hermod.destroy_response(&req)
+	defer hermod.destroy_hermod(&req)
+
+	if req.status_code >= 400 {
+		fmt.eprintfln("Server error %d", req.status_code)
+		return
+	}
 
 	fmt.printfln("%s", req.body[:])
 }

@@ -131,7 +131,7 @@ create_status_code :: proc(status: i64) -> Status_Code {
 	}
 
 	// We should implement more
-	content := fmt.tprintfln("Code: %d not implemented", status)
+	content := fmt.tprintfln("This code should not happen: %d", status)
 	panic(content)
 }
 
